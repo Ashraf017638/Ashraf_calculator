@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bearing Capacity Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        h2 {
+            text-align: center;
+        }
+        .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .row label {
+            flex: 1;
+        }
+        .row input {
+            flex: 2;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+            background-color: #eef;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .results p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Bearing Capacity Calculator</h2>
+    <div class="row">
+        <label for="B">Width of Footing (B) [m]:</label>
+        <input type="number" id="B" step="0.01">
+    </div>
+    <div class="row">
+        <label for="L">Length of Footing (L) [m]:</label>
+        <input type="number" id="L" step="0.01">
+    </div>
+    <div class="row">
+        <label for="D">Depth of Embedment (D) [m]:</label>
+        <input type="number" id="D" step="0.01">
+    </div>
+    <div class="row">
+        <label for="phi">Friction Angle (φ) [degrees]:</label>
+        <input type="number" id="phi" step="0.01">
+    </div>
+    <div class="row">
+        <label for="gamma">Unit Weight (γ) [kN/m³]:</label>
+        <input type="number" id="gamma" step="0.01">
+    </div>
+    <div class="row">
+        <label for="gamma_sat">Saturated Unit Weight (γ_sat) [kN/m³]:</label>
+        <input type="number" id="gamma_sat" step="0.01">
+    </div>
+    <div class="row">
+        <label for="z_w">Water Table Depth (z_w) [m]:</label>
+        <input type="number" id="z_w" step="0.01">
+    </div>
+    <div class="row">
+        <label for="FS">Safety Factor (FS):</label>
+        <input type="number" id="FS" step="0.01">
+    </div>
+    <button onclick="calculate()">Calculate</button>
+
+    <div class="results" id="results">
+        <h3>Results:</h3>
+        <p>Effective Unit Weight (γ_b): <span id="gamma_b">0</span> kN/m³</p>
+        <p>Effective Stress (q_0): <span id="q_0">0</span> kN/m²</p>
+        <p>Bearing Capacity Factor (Nq): <span id="Nq">0</span></p>
+        <p>Bearing Capacity Factor (Ny): <span id="Ngamma">0</span></p>
+        <p>Shape Factor (Sq): <span id="Sq">0</span></p>
+        <p>Shape Factor (Sr): <span id="Sr">0</span></p>
+        <p>Depth Factor (Dq): <span id="Dq">0</span></p>
+        <p>Depth Factor (Dr): <span id="Dr">1</span></p>
+        <p>Net Ultimate Capacity (q_net): <span id="q_net">0</span> kPa</p>
+        <p>Design Load (Q_design): <span id="Q_design">0</span> kN</p>
+    </div>
+</div>
+
+<script>
+    function calculate() {
+        // Retrieve input values
+        const B = parseFloat(document.getElementById("B").value);
+        const L = parseFloat(document.getElementById("L").value);
+        const D = parseFloat(document.getElementById("D").value);
+        const phi = parseFloat(document.getElementById("phi").value);
+        const gamma = parseFloat(document.getElementById("gamma").value);
+        const gamma_sat = parseFloat(document.getElementById("gamma_sat").value);
+        const z_w = parseFloat(document.getElementById("z_w").value);
+        const FS = parseFloat(document.getElementById("FS").value);
+
+        // Constants
+        const gamma_water = 9.8; // kN/m³
+        let gamma_b, q_0;
+
+        // Validate inputs
+        if (isNaN(B) || isNaN(L) || isNaN(D) || isNaN(phi) || isNaN(gamma) || isNaN(gamma_sat) || isNaN(z_w) || isNaN(FS) || FS <= 0) {
+            alert("Please enter valid inputs!");
+            return;
+        }
+
+        // Handle groundwater table cases
+        if (z_w > B + D) {
+            gamma_b = gamma;
+            q_0 = gamma * D;
+        } else if (z_w < D) {
+            gamma_b = gamma_sat - gamma_water;
+            q_0 = gamma_b * D;
+        } else {
+            const partial_depth = z_w - D;
+            gamma_b = gamma_sat - gamma_water;
+            q_0 = gamma * (D - partial_depth) + gamma_b * partial_depth;
+        }
+
+        // Convert φ to radians
+        const phi_rad = (phi * Math.PI) / 180;
+
+        // Bearing capacity factors
+        const Nq = (1 + Math.sin(phi_rad)) / (1 - Math.sin(phi_rad)) * Math.exp(Math.PI * Math.tan(phi_rad));
+        const Ny = 1.5 * (Nq - 1) * Math.tan(phi_rad);
+
+        // Correction factors
+        const Sq = 1 + (0.0952 * phi - 1.60) * Math.pow(D / B, 0.583 - 0.0079 * phi) * Math.pow(B / L, 1 - 0.15 * (D / B));
+        const Sr = 1 + (0.0345 * phi - 1.0611) * (B / L);
+        const Dq = 1 + (0.0044 * phi + 0.356) * Math.pow(D / B, -0.28);
+        const Dr = 1; // Depth factor remains constant
+
+        // Net ultimate bearing capacity
+        const q_net = q_0 * (Nq * Sq * Dq - 1) + 0.5 * gamma_b * B * Ny * Sr * Dr;
+
+        // Design load
+        const Q_design = (q_net * B * L) / FS;
+
+        // Update results
+        document.getElementById("gamma_b").innerText = gamma_b.toFixed(2);
+        document.getElementById("q_0").innerText = q_0.toFixed(2);
+        document.getElementById("Nq").innerText = Nq.toFixed(2);
+        document.getElementById("Ngamma").innerText = Ny.toFixed(2);
+        document.getElementById("Sq").innerText = Sq.toFixed(2);
+        document.getElementById("Sr").innerText = Sr.toFixed(2);
+        document.getElementById("Dq").innerText = Dq.toFixed(2);
+        document.getElementById("Dr").innerText = Dr.toFixed(2);
+        document.getElementById("q_net").innerText = q_net.toFixed(2);
+        document.getElementById("Q_design").innerText = Q_design.toFixed(2);
+    }
+</script>
+
+</body>
+</html>
